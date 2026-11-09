@@ -26,6 +26,9 @@ import CoreAudio
 import Defaults
 import simd
 import os.log
+#if canImport(AudioBridge)
+import AudioBridge // CLI-BUILD: SwiftPM has no bridging header
+#endif
 
 private let audioTapLog = OSLog(subsystem: "com.atoll.dynamicisland", category: "AudioTap")
 

@@ -136,9 +136,35 @@ class PrivacyIndicatorManager: ObservableObject {
     private init() {
         print("PrivacyIndicatorManager: 🚀 Initializing...")
         setupBindings()
+        setupDetectionSettingObservers()
     }
     
     // MARK: - Setup Methods
+
+    /// Start/stop each monitor when its Settings toggle flips (only while monitoring is active).
+    private func setupDetectionSettingObservers() {
+        Defaults.publisher(.enableCameraDetection, options: [])
+            .sink { [weak self] change in
+                guard let self, self.isMonitoring else { return }
+                if change.newValue {
+                    if self.cameraMonitor.isMonitoringAvailable { self.cameraMonitor.startMonitoring() }
+                } else {
+                    self.cameraMonitor.stopMonitoring()
+                }
+            }
+            .store(in: &cancellables)
+
+        Defaults.publisher(.enableMicrophoneDetection, options: [])
+            .sink { [weak self] change in
+                guard let self, self.isMonitoring else { return }
+                if change.newValue {
+                    if self.microphoneMonitor.isMonitoringAvailable { self.microphoneMonitor.startMonitoring() }
+                } else {
+                    self.microphoneMonitor.stopMonitoring()
+                }
+            }
+            .store(in: &cancellables)
+    }
     
     /// Setup bindings to child monitors
     private func setupBindings() {
@@ -205,15 +231,15 @@ class PrivacyIndicatorManager: ObservableObject {
         
         isMonitoring = true
         
-        // Start camera monitoring
-        if cameraMonitor.isMonitoringAvailable {
+        // Start camera monitoring (only while its setting is on)
+        if Defaults[.enableCameraDetection] && cameraMonitor.isMonitoringAvailable {
             cameraMonitor.startMonitoring()
         } else {
             print("PrivacyIndicatorManager: ⚠️ Camera monitoring not available")
         }
         
-        // Start microphone monitoring
-        if microphoneMonitor.isMonitoringAvailable {
+        // Start microphone monitoring (only while its setting is on)
+        if Defaults[.enableMicrophoneDetection] && microphoneMonitor.isMonitoringAvailable {
             microphoneMonitor.startMonitoring()
         } else {
             print("PrivacyIndicatorManager: ⚠️ Microphone monitoring not available")

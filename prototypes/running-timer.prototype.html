@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Approved running-timer look (2026-11-05). Spec: running-timer-design.md -->
+<html><head><meta charset="utf-8"><title>Running Timer</title><style>
+  :root { --sans:-apple-system,BlinkMacSystemFont,system-ui,sans-serif; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:var(--sans); -webkit-font-smoothing:antialiased; background:#111; color:#eee; padding:16px; }
+  .gal { display:grid; gap:14px; max-width:728px; margin:auto; }
+  h3 { font:600 13px var(--sans); margin-bottom:6px; } h3 span { font-weight:500; color:#999; }
+  .cell { position:relative; overflow:hidden; border-radius:8px; background:#868b99; }
+  .zoom { height:110px; } .real { height:70px; }
+  .stage { position:absolute; top:0; left:50%; width:364px; height:55px; transform-origin:top center; }
+  .zoom .stage { transform:translateX(-50%) scale(2); }
+  .real .stage { transform:translateX(-50%); width:728px; }
+  .menubar { height:32px; display:flex; align-items:center; padding:0 10px; gap:13px; font-size:12px; font-weight:500; color:#1d1d1f; }
+  .menubar .r { margin-left:auto; }
+  .island { position:absolute; top:0; left:50%; transform:translateX(-50%); width:283px; height:34px; }
+  .shape { position:absolute; inset:0; background:#000; border-radius:0 0 12px 12px; }
+  .shape::before,.shape::after { content:""; position:absolute; top:0; width:6px; height:6px; }
+  .shape::before { left:-6px; border-top-right-radius:6px; box-shadow:3px -3px 0 0 #000; }
+  .shape::after { right:-6px; border-top-left-radius:6px; box-shadow:-3px -3px 0 0 #000; }
+  .wings { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 13px 0 14px; }
+  .wings svg { width:12px; height:12px; }
+  .t { font:500 11.5px/1 var(--sans); font-variant-numeric:tabular-nums; letter-spacing:.01em; }
+  svg.rim { position:absolute; left:0; top:0; overflow:visible; }
+  .haze { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; pointer-events:none; filter:blur(1px); }
+</style></head><body><div class="gal">
+  <div><h3>Focus, shown at 2× <span>· 283 × 34 pt · 40% done</span></h3>
+  <div class="cell zoom"><div class="stage"><div class="menubar"><b>Finder</b><span>File</span><span class="r">8:58 PM</span></div><div class="island" data-p=".40" data-c="255,159,10"></div></div></div></div>
+  <div><h3>Focus, real size <span>· 1× · over an hour left</span></h3>
+  <div class="cell real"><div class="stage"><div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span class="r">Thu Nov 5 8:58 PM</span></div><div class="island" data-p=".40" data-t="1:01:59" data-c="255,159,10"></div></div></div></div>
+  <div><h3>Break, real size <span>· 1× · 85%, green</span></h3>
+  <div class="cell real"><div class="stage"><div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span class="r">Thu Nov 5 9:21 PM</span></div><div class="island" data-p=".85" data-t="0:45" data-c="48,209,88"></div></div></div></div>
+</div>
+<script>
+const W=283,H=34,r=12,e=6,w=2,i=w/2;
+document.querySelectorAll(".island").forEach(el=>{
+  const p=+el.dataset.p, t=el.dataset.t||"18:42", rgb=el.dataset.c, C="rgb("+rgb+")";
+  const icon='<svg viewBox="0 0 16 16" fill="none" stroke="'+C+'" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9.3" r="5.4"/><path d="M6.4 1.6h3.2M8 1.6v2.3M12.2 4.6l1.1-1.1M8 9.3V6.6"/></svg>';
+  const Re=e+i, R=r-i, yb=H-i;
+  const path=`M ${-e} ${-i} A ${Re} ${Re} 0 0 1 ${i} ${e} L ${i} ${H-r} A ${R} ${R} 0 0 0 ${r} ${yb} L ${W-r} ${yb} A ${R} ${R} 0 0 0 ${W-i} ${H-r} L ${W-i} ${e} A ${Re} ${Re} 0 0 1 ${W+e} ${-i}`;
+  el.innerHTML='<div class="shape"></div><div class="wings">'+icon+'<span class="t" style="color:'+C+'">'+t+'</span></div>'+
+   '<svg class="rim" width="'+W+'" height="'+H+'"><path class="fill" d="'+path+'" fill="none" stroke="'+C+'" stroke-width="'+w+'" stroke-linecap="round"/></svg><div class="haze"></div>';
+  const f=el.querySelector(".fill"), L=f.getTotalLength(), end=L*p;
+  f.style.strokeDasharray=end+" "+L;
+  const b=f.getPointAtLength(end), h=el.querySelector(".haze");
+  h.style.left=b.x+"px"; h.style.top=b.y+"px";
+  h.style.background="radial-gradient(circle, rgba(255,255,255,.8) 0%, rgba("+rgb+",.45) 30%, rgba("+rgb+",0) 70%)";
+});
+</script></body></html>

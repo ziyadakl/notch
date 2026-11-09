@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "prototypes/running-timer.prototype.html"
+        ],
+        "createdAt": "2026-11-06T02:58:59.876Z",
+        "reason": "Claude: the mock menu bar sits flush at the top of each preview cell on purpose, the way the real menu bar does; island text is inset 13-14pt; throwaway prototype"
+      }
+    ]
+  }
+}

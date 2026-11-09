@@ -59,6 +59,7 @@ struct TabSelectionView: View {
     @Default(.showCalendar) private var showCalendar
     @Default(.showMirror) private var showMirror
     @Default(.showStandardMediaControls) private var showStandardMediaControls
+    @Default(.enableMusic) private var enableMusic
     @Default(.enableMinimalisticUI) private var enableMinimalisticUI
     @Namespace var animation
     
@@ -163,7 +164,7 @@ struct TabSelectionView: View {
         if enableMinimalisticUI {
             return true
         }
-        return showStandardMediaControls || showCalendar || showMirror
+        return (enableMusic && showStandardMediaControls) || showCalendar || showMirror
     }
 
     private func isSelected(_ tab: TabModel) -> Bool {

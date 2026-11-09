@@ -234,19 +234,30 @@ class BluetoothAudioManager: ObservableObject {
             }
         }
 
-        if Defaults[.showAirPodsListeningModeChanges] {
-            listeningModeLogObserver.start()
-        }
+        // The `log stream` child only runs while the setting is on AND an AirPods-class
+        // device is connected; either flipping re-evaluates it.
+        updateListeningModeLogObserver()
 
         Defaults.publisher(.showAirPodsListeningModeChanges, options: [])
-            .sink { [weak self] change in
-                if change.newValue {
-                    self?.listeningModeLogObserver.start()
-                } else {
-                    self?.listeningModeLogObserver.stop()
-                }
+            .sink { [weak self] _ in
+                self?.updateListeningModeLogObserver()
             }
             .store(in: &cancellables)
+
+        $connectedDevices
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateListeningModeLogObserver()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func updateListeningModeLogObserver() {
+        if Defaults[.showAirPodsListeningModeChanges] && connectedDevices.contains(where: { $0.deviceType.isAirPods }) {
+            listeningModeLogObserver.start()
+        } else {
+            listeningModeLogObserver.stop()
+        }
     }
     
     /// Starts polling for device connection changes (fallback mechanism)

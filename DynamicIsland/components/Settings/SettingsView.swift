@@ -431,6 +431,8 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .timer, title: "Solid colour", keywords: ["timer colour", "custom"], highlightID: SettingsTab.timer.highlightID(for: "Solid colour")),
         SettingsSearchEntry(tab: .timer, title: "Progress style", keywords: ["progress", "bar", "ring"], highlightID: SettingsTab.timer.highlightID(for: "Progress style")),
         SettingsSearchEntry(tab: .timer, title: "Accent colour", keywords: ["accent", "timer"], highlightID: SettingsTab.timer.highlightID(for: "Accent colour")),
+        SettingsSearchEntry(tab: .timer, title: "Custom timer length", keywords: ["custom timer", "duration", "length"], highlightID: SettingsTab.timer.highlightID(for: "Custom timer length")),
+        SettingsSearchEntry(tab: .timer, title: "Timer Sound", keywords: ["sound", "alarm", "timer end"], highlightID: SettingsTab.timer.highlightID(for: "Timer Sound")),
 
         // Stats
         SettingsSearchEntry(tab: .stats, title: "Enable system stats monitoring", keywords: ["stats", "monitoring"], highlightID: SettingsTab.stats.highlightID(for: "Enable system stats monitoring")),
@@ -3202,6 +3204,16 @@ struct Media: View {
 
     var body: some View {
         Form {
+            Section {
+                Defaults.Toggle(key: .enableMusic) {
+                    Text("Music")
+                }
+            } footer: {
+                Text("When off, Atoll does not read what is playing and no media helper process runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
@@ -7395,9 +7407,7 @@ struct TimerSettings: View {
     @Default(.lockScreenTimerGlassCustomizationMode) private var lockScreenTimerGlassCustomizationMode
     @Default(.lockScreenTimerLiquidGlassVariant) private var lockScreenTimerLiquidGlassVariant
     @AppStorage("customTimerDuration") private var customTimerDuration: Double = 600
-    @State private var customHours: Int = 0
-    @State private var customMinutes: Int = 10
-    @State private var customSeconds: Int = 0
+    @AppStorage("customTimerSoundPath") private var customTimerSoundPath: String?
     @State private var showingResetConfirmation = false
 
     private func highlightID(_ title: String) -> String {
@@ -7434,8 +7444,6 @@ struct TimerSettings: View {
             }
         }
         .navigationTitle("Timer")
-        .onAppear { syncCustomDuration() }
-        .onChange(of: customTimerDuration) { _, newValue in syncCustomDuration(newValue) }
     }
 
     @ViewBuilder
@@ -7469,18 +7477,17 @@ struct TimerSettings: View {
         } header: {
             Text("Timer Feature")
         } footer: {
-            Text("Control timer availability, live activity behaviour, and whether the app mirrors timers started from the macOS Clock app.")
+            SettingsFooterText("Mirroring shows timers you start in the macOS Clock app.")
         }
     }
 
     @ViewBuilder
     private var timerConfigurationSections: some View {
         Group {
-            lockScreenIntegrationSection
+            timerPresetsSection
             customTimerSection
             appearanceSection
-            timerPresetsSection
-            timerSoundSection
+            lockScreenIntegrationSection
         }
     }
 
@@ -7551,38 +7558,81 @@ struct TimerSettings: View {
         } header: {
             Text("Lock Screen Integration")
         } footer: {
-            Text("Mirrors the toggle found under Lock Screen settings so timer-specific workflows can enable or disable the widget without switching tabs.")
+            SettingsFooterText("The same switch as in Lock Screen settings.")
+        }
+    }
+
+    @ViewBuilder
+    private var timerPresetsSection: some View {
+        Section {
+            if timerPresets.isEmpty {
+                Text("No presets yet. Add one to start a timer in one click.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach($timerPresets) { $preset in
+                    TimerPresetRow(
+                        preset: $preset,
+                        onDrop: { draggedID in movePreset(draggedID, before: preset.id) },
+                        remove: { removePreset(preset.id) }
+                    )
+                    .settingsHighlightIfPresent(preset.id == timerPresets.first?.id ? highlightID("Accent colour") : nil)
+                }
+            }
+
+            HStack {
+                Button(action: addPreset) {
+                    Label("Add Preset", systemImage: "plus")
+                }
+
+                Spacer()
+
+                Button("Restore Defaults") { showingResetConfirmation = true }
+                    .foregroundStyle(.secondary)
+                    .confirmationDialog("Restore default timer presets?", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
+                        Button("Restore", role: .destructive, action: resetPresets)
+                    }
+            }
+            .buttonStyle(.borderless)
+        } header: {
+            Text("Presets")
+        } footer: {
+            SettingsFooterText("Presets appear in the timer popover in this order. Drag a row to reorder it. Type a length like 25, 1h 30 or 90s.")
         }
     }
 
     @ViewBuilder
     private var customTimerSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Default Custom Timer")
-                    .font(.headline)
+            LabeledContent("Custom timer length") {
+                TimerDurationField(duration: $customTimerDuration)
+            }
+            .settingsHighlight(id: highlightID("Custom timer length"))
 
-                TimerDurationStepperRow(title: String(localized: "Hours"), value: $customHours, range: 0...23)
-                TimerDurationStepperRow(title: String(localized: "Minutes"), value: $customMinutes, range: 0...59)
-                TimerDurationStepperRow(title: String(localized: "Seconds"), value: $customSeconds, range: 0...59)
-
-                HStack {
-                    Text("Current default:")
+            LabeledContent("Sound when a timer ends") {
+                HStack(spacing: 8) {
+                    Text(customTimerSoundPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? String(localized: "Default"))
                         .foregroundStyle(.secondary)
-                    Text(customDurationDisplay)
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.medium)
-                    Spacer()
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    if customTimerSoundPath != nil {
+                        Button {
+                            customTimerSoundPath = nil
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Use the default sound")
+                    }
+
+                    Button("Choose…", action: selectCustomTimerSound)
                 }
             }
-            .padding(.vertical, 4)
-            .onChange(of: customHours) { _, _ in updateCustomDuration() }
-            .onChange(of: customMinutes) { _, _ in updateCustomDuration() }
-            .onChange(of: customSeconds) { _, _ in updateCustomDuration() }
+            .settingsHighlight(id: highlightID("Timer Sound"))
         } header: {
-            Text("Custom Timer")
+            Text("Custom Timer and Sound")
         } footer: {
-            Text("This duration powers the \"Custom\" option inside the timer popover for quick access.")
+            SettingsFooterText("The custom length powers the Custom option in the timer popover. Sounds can be MP3, M4A, WAV or AIFF.")
         }
     }
 
@@ -7628,104 +7678,8 @@ struct TimerSettings: View {
         } header: {
             Text("Appearance")
         } footer: {
-            Text("Configure how the timer looks inside the closed notch. Progress can render as a ring around the icon or as horizontal bars.")
+            SettingsFooterText("How a running timer looks inside the closed notch.")
         }
-    }
-
-    @ViewBuilder
-    private var timerPresetsSection: some View {
-        Section {
-            if timerPresets.isEmpty {
-                Text("No presets configured. Add a preset to make it appear in the timer popover.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-            } else {
-                TimerPresetListView(
-                    presets: $timerPresets,
-                    highlightProvider: highlightID,
-                    moveUp: movePresetUp,
-                    moveDown: movePresetDown,
-                    remove: removePreset
-                )
-            }
-
-            HStack {
-                Button(action: addPreset) {
-                    Label("Add Preset", systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button(role: .destructive, action: { showingResetConfirmation = true }) {
-                    Label("Restore Defaults", systemImage: "arrow.counterclockwise")
-                }
-                .buttonStyle(.bordered)
-                .confirmationDialog("Restore default timer presets?", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
-                    Button("Restore", role: .destructive, action: resetPresets)
-                }
-            }
-        } header: {
-            Text("Timer Presets")
-        } footer: {
-            Text("Presets show up inside the timer popover with the configured name, duration, and accent colour. Reorder them to change the display order.")
-        }
-    }
-
-    @ViewBuilder
-    private var timerSoundSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Timer Sound")
-                        .font(.system(size: 16, weight: .medium))
-                    Spacer()
-                    Button("Choose File", action: selectCustomTimerSound)
-                        .buttonStyle(.bordered)
-                }
-
-                if let customTimerSoundPath = UserDefaults.standard.string(forKey: "customTimerSoundPath") {
-                    Text("Custom: \(URL(fileURLWithPath: customTimerSoundPath).lastPathComponent)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("Default: dynamic.m4a")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Button("Reset to Default") {
-                    UserDefaults.standard.removeObject(forKey: "customTimerSoundPath")
-                }
-                .buttonStyle(.bordered)
-                .disabled(UserDefaults.standard.string(forKey: "customTimerSoundPath") == nil)
-            }
-        } header: {
-            Text("Timer Sound")
-        } footer: {
-            Text("Select a custom sound to play when a timer ends. Supported formats include MP3, M4A, WAV, and AIFF.")
-        }
-    }
-
-    private var customDurationDisplay: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = customTimerDuration >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
-        formatter.zeroFormattingBehavior = [.pad]
-        return formatter.string(from: customTimerDuration) ?? "0:00"
-    }
-
-    private func syncCustomDuration(_ value: Double? = nil) {
-        let baseValue = value ?? customTimerDuration
-        let components = TimerPreset.components(for: baseValue)
-        customHours = components.hours
-        customMinutes = components.minutes
-        customSeconds = components.seconds
-    }
-
-    private func updateCustomDuration() {
-        let duration = TimeInterval(customHours * 3600 + customMinutes * 60 + customSeconds)
-        customTimerDuration = duration
     }
 
     private func addPreset() {
@@ -7737,24 +7691,18 @@ struct TimerSettings: View {
         }
     }
 
-    private func movePresetUp(_ index: Int) {
-        guard index > timerPresets.startIndex else { return }
+    private func movePreset(_ draggedID: UUID, before targetID: UUID) {
+        guard draggedID != targetID,
+              let from = timerPresets.firstIndex(where: { $0.id == draggedID }),
+              let to = timerPresets.firstIndex(where: { $0.id == targetID }) else { return }
         _ = withAnimation(.smooth) {
-            timerPresets.swapAt(index, index - 1)
+            timerPresets.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
         }
     }
 
-    private func movePresetDown(_ index: Int) {
-        guard index < timerPresets.index(before: timerPresets.endIndex) else { return }
+    private func removePreset(_ id: UUID) {
         _ = withAnimation(.smooth) {
-            timerPresets.swapAt(index, index + 1)
-        }
-    }
-
-    private func removePreset(_ index: Int) {
-        guard timerPresets.indices.contains(index) else { return }
-        _ = withAnimation(.smooth) {
-            timerPresets.remove(at: index)
+            timerPresets.removeAll { $0.id == id }
         }
     }
 
@@ -7772,113 +7720,34 @@ struct TimerSettings: View {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
 
-        if panel.runModal() == .OK {
-            if let url = panel.url {
-                UserDefaults.standard.set(url.path, forKey: "customTimerSoundPath")
-            }
+        if panel.runModal() == .OK, let url = panel.url {
+            customTimerSoundPath = url.path
         }
     }
 }
 
-private struct TimerDurationStepperRow: View {
-    let title: String
-    @Binding var value: Int
-    let range: ClosedRange<Int>
+/// Footer copy aligned to the leading edge, matching System Settings.
+private struct SettingsFooterText: View {
+    let text: LocalizedStringKey
+
+    init(_ text: LocalizedStringKey) {
+        self.text = text
+    }
 
     var body: some View {
-        Stepper(value: $value, in: range) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text("\(value)")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-            }
-        }
+        Text(text)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct TimerPresetListView: View {
-    @Binding var presets: [TimerPreset]
-    let highlightProvider: (String) -> String
-    let moveUp: (Int) -> Void
-    let moveDown: (Int) -> Void
-    let remove: (Int) -> Void
-
-    var body: some View {
-        ForEach(presets.indices, id: \.self) { index in
-            presetRow(at: index)
-        }
-    }
-
-    @ViewBuilder
-    private func presetRow(at index: Int) -> some View {
-        TimerPresetEditorRow(
-            preset: $presets[index],
-            isFirst: index == presets.startIndex,
-            isLast: index == presets.index(before: presets.endIndex),
-            highlightID: highlightID(for: index),
-            moveUp: { moveUp(index) },
-            moveDown: { moveDown(index) },
-            remove: { remove(index) }
-        )
-    }
-
-    private func highlightID(for index: Int) -> String? {
-        index == presets.startIndex ? highlightProvider("Accent colour") : nil
-    }
-}
-
-private struct TimerPresetEditorRow: View {
+/// One line per preset: drag handle, colour, name, length, and a delete button on hover.
+private struct TimerPresetRow: View {
     @Binding var preset: TimerPreset
-    let isFirst: Bool
-    let isLast: Bool
-    let moveUp: () -> Void
-    let moveDown: () -> Void
+    let onDrop: (UUID) -> Void
     let remove: () -> Void
-    let highlightID: String?
 
-    init(
-        preset: Binding<TimerPreset>,
-        isFirst: Bool,
-        isLast: Bool,
-        highlightID: String? = nil,
-        moveUp: @escaping () -> Void,
-        moveDown: @escaping () -> Void,
-        remove: @escaping () -> Void
-    ) {
-        _preset = preset
-        self.isFirst = isFirst
-        self.isLast = isLast
-        self.highlightID = highlightID
-        self.moveUp = moveUp
-        self.moveDown = moveDown
-        self.remove = remove
-    }
-
-    private var components: TimerPreset.DurationComponents {
-        TimerPreset.components(for: preset.duration)
-    }
-
-    private var hoursBinding: Binding<Int> {
-        Binding(
-            get: { components.hours },
-            set: { updateDuration(hours: $0) }
-        )
-    }
-
-    private var minutesBinding: Binding<Int> {
-        Binding(
-            get: { components.minutes },
-            set: { updateDuration(minutes: $0) }
-        )
-    }
-
-    private var secondsBinding: Binding<Int> {
-        Binding(
-            get: { components.seconds },
-            set: { updateDuration(seconds: $0) }
-        )
-    }
+    @State private var isHovering = false
+    @State private var isDropTarget = false
 
     private var colorBinding: Binding<Color> {
         Binding(
@@ -7888,87 +7757,92 @@ private struct TimerPresetEditorRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(preset.color.gradient)
-                    .frame(width: 20, height: 20)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
+        HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .frame(width: 16)
+                .contentShape(Rectangle())
+                .draggable(preset.id.uuidString)
+                .help("Drag to reorder")
 
-                TextField("Preset name", text: $preset.name)
-                    .textFieldStyle(.roundedBorder)
+            ColorPicker("Colour", selection: colorBinding, supportsOpacity: false)
+                .labelsHidden()
 
-                Spacer()
+            TextField("Name", text: $preset.name)
+                .textFieldStyle(.plain)
 
-                Text(preset.formattedDuration)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
+            TimerDurationField(duration: $preset.duration)
+
+            Button(role: .destructive, action: remove) {
+                Image(systemName: "trash")
             }
-
-            HStack(spacing: 16) {
-                TimerPresetComponentControl(title: String(localized: "Hours"), value: hoursBinding, range: 0...23)
-                TimerPresetComponentControl(title: String(localized: "Minutes"), value: minutesBinding, range: 0...59)
-                TimerPresetComponentControl(title: String(localized: "Seconds"), value: secondsBinding, range: 0...59)
-            }
-
-            ColorPicker("Accent colour", selection: colorBinding, supportsOpacity: false)
-                .frame(maxWidth: 240, alignment: .leading)
-
-            HStack(spacing: 12) {
-                Button(action: moveUp) {
-                    Label("Move Up", systemImage: "chevron.up")
-                }
-                .buttonStyle(.bordered)
-                .disabled(isFirst)
-
-                Button(action: moveDown) {
-                    Label("Move Down", systemImage: "chevron.down")
-                }
-                .buttonStyle(.bordered)
-                .disabled(isLast)
-
-                Spacer()
-
-                Button(role: .destructive, action: remove) {
-                    Label("Delete", systemImage: "trash")
-                }
-                .buttonStyle(.bordered)
-            }
-            .font(.system(size: 12, weight: .medium))
+            .buttonStyle(.borderless)
+            .help("Delete preset")
+            .opacity(isHovering ? 1 : 0)
+            .accessibilityLabel("Delete \(preset.name)")
         }
-        .padding(.vertical, 6)
-        .settingsHighlightIfPresent(highlightID)
-    }
-
-    private func updateDuration(hours: Int? = nil, minutes: Int? = nil, seconds: Int? = nil) {
-        var values = components
-        if let hours { values.hours = hours }
-        if let minutes { values.minutes = minutes }
-        if let seconds { values.seconds = seconds }
-        preset.duration = TimerPreset.duration(from: values)
+        .padding(.vertical, 2)
+        .overlay(alignment: .top) {
+            if isDropTarget {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+                    .offset(y: -5)
+            }
+        }
+        .onHover { isHovering = $0 }
+        .dropDestination(for: String.self) { items, _ in
+            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+            onDrop(id)
+            return true
+        } isTargeted: { isDropTarget = $0 }
     }
 }
 
-private struct TimerPresetComponentControl: View {
-    let title: String
-    @Binding var value: Int
-    let range: ClosedRange<Int>
+/// A single text field for a duration. Accepts "25" (minutes), "1h 30", "90s", "1:30:00" or "25:00".
+struct TimerDurationField: View {
+    @Binding var duration: TimeInterval
+
+    @State private var text = ""
+    @FocusState private var isFocused: Bool
 
     var body: some View {
-        Stepper(value: $value, in: range) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(value)")
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+        TextField("Length", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.trailing)
+            .monospacedDigit()
+            .frame(width: 96)
+            .focused($isFocused)
+            .onSubmit(commit)
+            .onChange(of: isFocused) { _, focused in
+                if !focused { commit() }
             }
-        }
-        .frame(width: 110, alignment: .leading)
+            .onAppear { text = Self.format(duration) }
+            .onChange(of: duration) { _, newValue in
+                if !isFocused { text = Self.format(newValue) }
+            }
+            .help("Type 25 for 25 minutes, or 1h 30, 90s, 1:30:00")
     }
+
+    private func commit() {
+        if let parsed = TimerPreset.parseDuration(text) {
+            duration = parsed
+        }
+        text = Self.format(duration)
+    }
+
+    static func format(_ duration: TimeInterval) -> String {
+        let total = max(0, Int(duration.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        var parts: [String] = []
+        if hours > 0 { parts.append("\(hours) h") }
+        if minutes > 0 { parts.append("\(minutes) min") }
+        if seconds > 0 || parts.isEmpty { parts.append("\(seconds) s") }
+        return parts.joined(separator: " ")
+    }
+
 }
 
 struct StatsSettings: View {

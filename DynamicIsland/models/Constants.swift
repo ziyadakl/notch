@@ -992,7 +992,7 @@ extension Defaults.Keys {
     static let hideDynamicIslandFromScreenCapture = Key<Bool>("hideDynamicIslandFromScreenCapture", default: false)
     
         // MARK: Behavior
-    static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.3)
+    static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.1)
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
     static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
 	static let extendHoverArea = Key<Bool>("extendHoverArea", default: false)
@@ -1022,7 +1022,7 @@ extension Defaults.Keys {
     static let showMirror = Key<Bool>("showMirror", default: false)
     static let mirrorShape = Key<MirrorShapeEnum>("mirrorShape", default: MirrorShapeEnum.rectangle)
     static let selectedCameraID = Key<String>("selectedCameraID", default: "")
-    static let settingsIconInNotch = Key<Bool>("settingsIconInNotch", default: true)
+    static let settingsIconInNotch = Key<Bool>("settingsIconInNotch", default: false)
     static let lightingEffect = Key<Bool>("lightingEffect", default: true)
     static let accentColor = Key<Color>("accentColor", default: Color.blue)
     static let enableShadow = Key<Bool>("enableShadow", default: true)
@@ -1060,6 +1060,8 @@ extension Defaults.Keys {
     static let reverseScrollGestures = Key<Bool>("reverseScrollGestures", default: false)
     
         // MARK: Media playback
+    /// Master switch for the music feature. When off, no media controller or helper process runs.
+    static let enableMusic = Key<Bool>("enableMusic", default: false)
     static let coloredSpectrogram = Key<Bool>("coloredSpectrogram", default: true)
     static let enableRealTimeWaveform = Key<Bool>("enableRealTimeWaveform", default: false)
     static let enableSneakPeek = Key<Bool>("enableSneakPeek", default: false)
@@ -1168,7 +1170,7 @@ extension Defaults.Keys {
     static let fantasticalDefaultView = Key<FantasticalViewStyle>("fantasticalDefaultView", default: .mini)
     
         // MARK: Battery
-    static let showPowerStatusNotifications = Key<Bool>("showPowerStatusNotifications", default: true)
+    static let showPowerStatusNotifications = Key<Bool>("showPowerStatusNotifications", default: false)
     static let showBatteryIndicator = Key<Bool>("showBatteryIndicator", default: BatteryActivityManager.shared.hasBattery())
     static let showBatteryPercentage = Key<Bool>("showBatteryPercentage", default: true)
     static let showBatteryPercentInside = Key<Bool>("showBatteryPercentInside", default: true)
@@ -1203,7 +1205,7 @@ extension Defaults.Keys {
     static let selectedDownloadIconStyle = Key<DownloadIconStyle>("selectedDownloadIconStyle", default: DownloadIconStyle.onlyAppIcon)
     
         // MARK: HUD
-    static let inlineHUD = Key<Bool>("inlineHUD", default: true)
+    static let inlineHUD = Key<Bool>("inlineHUD", default: false)
     static let progressBarStyle = Key<ProgressBarStyle>("progressBarStyle", default: .hierarchical)
     // Legacy support - keeping for backward compatibility
     static let enableGradient = Key<Bool>("enableGradient", default: false)
@@ -1330,7 +1332,7 @@ extension Defaults.Keys {
     
     
     // MARK: Reminder Live Activity
-    static let enableReminderLiveActivity = Key<Bool>("enableReminderLiveActivity", default: true)
+    static let enableReminderLiveActivity = Key<Bool>("enableReminderLiveActivity", default: false)
     static let reminderPresentationStyle = Key<ReminderPresentationStyle>("reminderPresentationStyle", default: .ringCountdown)
     static let reminderLeadTime = Key<Int>("reminderLeadTime", default: 5)
     static let reminderSneakPeekDuration = Key<Double>("reminderSneakPeekDuration", default: 5)
@@ -1344,7 +1346,7 @@ extension Defaults.Keys {
     static let perAppVolumeMuted = Key<Set<String>>("perAppVolumeMuted", default: [])
     // MARK: Caffeinate Feature
     static let enableCaffeinate = Key<Bool>("enableCaffeinate", default: true)
-    static let showCaffeinateIcon = Key<Bool>("showCaffeinateIcon", default: true)
+    static let showCaffeinateIcon = Key<Bool>("showCaffeinateIcon", default: false)
     static let caffeinateDefaultDuration = Key<CaffeinateDuration>("caffeinateDefaultDuration", default: .indefinite)
     static let caffeinateKeepsDisplayAwake = Key<Bool>("caffeinateKeepsDisplayAwake", default: true)
 
@@ -1379,7 +1381,7 @@ extension Defaults.Keys {
 
     // MARK: Third-Party Extensions
     static let enableThirdPartyExtensions = Key<Bool>("enableThirdPartyExtensions", default: true)
-    static let enableExtensionLiveActivities = Key<Bool>("enableExtensionLiveActivities", default: true)
+    static let enableExtensionLiveActivities = Key<Bool>("enableExtensionLiveActivities", default: false)
     static let enableExtensionLockScreenWidgets = Key<Bool>("enableExtensionLockScreenWidgets", default: true)
     static let enableExtensionNotchExperiences = Key<Bool>("enableExtensionNotchExperiences", default: true)
     static let enableExtensionNotchTabs = Key<Bool>("enableExtensionNotchTabs", default: true)
@@ -1440,7 +1442,7 @@ extension Defaults.Keys {
     static let circularHUDUseAccentColor = Key<Bool>("circularHUDUseAccentColor", default: true)
 
     // MARK: Third-Party DDC Integration
-    static let enableThirdPartyDDCIntegration = Key<Bool>("enableThirdPartyDDCIntegration", default: false)
+    static let enableThirdPartyDDCIntegration = Key<Bool>("enableThirdPartyDDCIntegration", default: true)
     static let thirdPartyDDCProvider = Key<ThirdPartyDDCProvider>("thirdPartyDDCProvider", default: .betterDisplay)
     static let enableExternalVolumeControlListener = Key<Bool>("enableExternalVolumeControlListener", default: false)
     static let didMigrateThirdPartyDDCIntegration = Key<Bool>("didMigrateThirdPartyDDCIntegration", default: false)

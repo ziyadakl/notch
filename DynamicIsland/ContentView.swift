@@ -93,6 +93,7 @@ struct ContentView: View {
     @Default(.enableCapsLockIndicator) var enableCapsLockIndicator
     @Default(.enableExtensionLiveActivities) var enableExtensionLiveActivities
     @Default(.showStandardMediaControls) var showStandardMediaControls
+    @Default(.enableMusic) var enableMusic
     @Default(.externalDisplayStyle) var externalDisplayStyle
     @Default(.hideNonNotchUntilHover) var hideNonNotchUntilHover
     @Default(.terminalStickyMode) var terminalStickyMode
@@ -183,10 +184,6 @@ struct ContentView: View {
                 
                 return CGSize(width: width, height: height)
             }
-        }
-        
-        if coordinator.currentView == .timer {
-            return CGSize(width: baseSize.width, height: 250) // Extra height for timer presets
         }
         
         if coordinator.currentView == .notes {
@@ -323,11 +320,11 @@ struct ContentView: View {
     }
     
     private var standardMediaControlsActive: Bool {
-        showStandardMediaControls && !enableMinimalisticUI
+        enableMusic && showStandardMediaControls && !enableMinimalisticUI
     }
 
     private var closedMusicContentEnabled: Bool {
-        enableMinimalisticUI || showStandardMediaControls
+        enableMusic && (enableMinimalisticUI || showStandardMediaControls)
     }
 
     private var isMusicHUDDeferredAfterUnlock: Bool {
@@ -1115,8 +1112,8 @@ struct ContentView: View {
                             kind: batteryModel.activeTemporaryHUDKind ?? .charging,
                             batteryLevel: displayedBatteryHUDLevel,
                             isLowPowerMode: displayedBatteryHUDUsesLowPowerMode,
-                            closedNotchWidth: vm.closedNotchSize.width + (isHovering ? 8 : 0),
-                            baseHeight: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
+                            closedNotchWidth: vm.closedNotchSize.width,
+                            baseHeight: vm.effectiveClosedNotchHeight,
                             isDynamicIslandMode: isDynamicIslandMode,
                             topCornerRadius: activeCornerRadiusInsets.closed.top,
                             styleOverride: batteryModel.activeTemporaryHUDKind.map { resolvedBatteryNotificationStyle(for: $0) }
@@ -1386,20 +1383,20 @@ struct ContentView: View {
                 IdleAnimationView()
                     .frame(width: sideSize, height: sideSize)
             }
-        }.frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
+        }.frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
     }
 
     @ViewBuilder
     private func MusicLiveActivity(secondary preResolvedSecondary: MusicSecondaryLiveActivity? = nil) -> some View {
         let secondary = preResolvedSecondary ?? resolveMusicSecondaryLiveActivity()
         let closedHeight = vm.effectiveClosedNotchHeight
-        let outerHeight = closedHeight + (isHovering ? 8 : 0)
+        let outerHeight = closedHeight
         let notchContentHeight = isHovering ? max(0, closedHeight) : max(0, closedHeight - 12)
         let wingBaseWidth = max(0, notchContentHeight + gestureProgress / 2)
         let artworkHeight = max(0, closedHeight - 12)
         let artworkSize = min(artworkHeight, wingBaseWidth)
-        let rawCenterBaseWidth = vm.closedNotchSize.width + (isHovering ? 8 : 0)
-        let centerBaseWidth = max(rawCenterBaseWidth, 96)
+        let rawCenterBaseWidth = vm.closedNotchSize.width
+        let centerBaseWidth = rawCenterBaseWidth
         let inlineSneakPeekActive = (
             coordinator.expandingView.show &&
             (coordinator.expandingView.type == .music || coordinator.expandingView.type == .timer) &&
@@ -2004,7 +2001,7 @@ struct ContentView: View {
         let outerHeight = notchHeight
         let contentHeight = max(0, notchHeight - (isHovering ? 0 : 12))
         let leadingWidth = max(contentHeight, 44)
-        let centerWidth: CGFloat = max(vm.closedNotchSize.width + (isHovering ? 8 : 0), 96)
+        let centerWidth: CGFloat = vm.closedNotchSize.width
         let trailingWidth = ExtensionLayoutMetrics.trailingWidth(
             for: payload,
             baseWidth: leadingWidth,
@@ -2409,8 +2406,8 @@ struct ContentView: View {
             return false
         }
 
-        let closedHeight = vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0)
-        let closedWidth = max(vm.closedNotchSize.width + (isHovering ? 8 : 0), 96)
+        let closedHeight = vm.effectiveClosedNotchHeight
+        let closedWidth = vm.closedNotchSize.width
         let recordingSize = recordingHUDLayout.size(
             closedNotchSize: vm.closedNotchSize,
             effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
@@ -2933,7 +2930,7 @@ struct ContentView: View {
     private func currentMusicControlWindowMetrics() -> MusicControlWindowMetrics {
         MusicControlWindowMetrics(
             notchHeight: max(vm.closedNotchSize.height, vm.effectiveClosedNotchHeight),
-            notchWidth: vm.closedNotchSize.width + (isHovering ? 8 : 0),
+            notchWidth: vm.closedNotchSize.width,
             rightWingWidth: max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12) + gestureProgress / 2),
             cornerRadius: activeCornerRadiusInsets.closed.bottom,
             spacing: 36,

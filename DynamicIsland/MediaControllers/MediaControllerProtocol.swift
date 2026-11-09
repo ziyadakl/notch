@@ -68,9 +68,12 @@ protocol MediaControllerProtocol: ObservableObject {
     /// so the caller can put an optimistic toggle back if it did not.
     @discardableResult
     func setCurrentTrackFavorited(_ favorited: Bool) async -> Bool
+    /// Stops any helper process the controller started. Dropping the controller alone does not.
+    func shutdown()
 }
 
 extension MediaControllerProtocol {
+    func shutdown() {}
     @MainActor var canEverFavorite: Bool { false }
     @MainActor var supportsFavoriting: Bool { false }
 

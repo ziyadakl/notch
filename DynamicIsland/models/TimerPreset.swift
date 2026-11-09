@@ -77,11 +77,15 @@ struct TimerPreset: Identifiable, Codable, Hashable, Defaults.Serializable {
         colorData = ColorData(color: newColor)
     }
 
-    var formattedDuration: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = duration >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
-        formatter.zeroFormattingBehavior = [.pad]
-        return formatter.string(from: duration) ?? "0:00"
+    var formattedDuration: String { Self.clockString(for: duration) }
+
+    /// A length as a clock: "5:00", "25:00", "1:30:00".
+    static func clockString(for duration: TimeInterval) -> String {
+        let total = max(0, Int(duration.rounded()))
+        let hours = total / 3600, minutes = (total % 3600) / 60, seconds = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            : String(format: "%d:%02d", minutes, seconds)
     }
 
     static func components(for duration: TimeInterval) -> DurationComponents {
@@ -94,6 +98,64 @@ struct TimerPreset: Identifiable, Codable, Hashable, Defaults.Serializable {
 
     static func duration(from components: DurationComponents) -> TimeInterval {
         TimeInterval(components.hours * 3600 + components.minutes * 60 + components.seconds)
+    }
+
+    /// Reads a typed length: "25" (minutes), "25:00", "1:30:00", "1h 30", "90s", "1.5h".
+    /// Returns nil for empty, unreadable or non-positive input.
+    static func parseDuration(_ input: String) -> TimeInterval? {
+        let s = input.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !s.isEmpty else { return nil }
+
+        // Clock form: "mm:ss" or "h:mm:ss".
+        if s.contains(":") {
+            let parts = s.split(separator: ":").map { Int($0.trimmingCharacters(in: .whitespaces)) }
+            guard parts.allSatisfy({ $0 != nil }) else { return nil }
+            let values = parts.compactMap { $0 }
+            switch values.count {
+            case 2: return TimeInterval(values[0] * 60 + values[1])
+            case 3: return TimeInterval(values[0] * 3600 + values[1] * 60 + values[2])
+            default: return nil
+            }
+        }
+
+        // A bare number means minutes.
+        if let minutes = Double(s) { return minutes * 60 }
+
+        // Unit form: "1h 30", "1h30m", "90s", "2 hr 5 min". A trailing bare number after hours is minutes.
+        var total: Double = 0
+        var number = ""
+        var lastUnit: Character?
+        var index = s.startIndex
+        while index < s.endIndex {
+            let c = s[index]
+            if c.isNumber || c == "." {
+                number.append(c)
+            } else if c.isLetter {
+                var word = String(c)
+                var next = s.index(after: index)
+                while next < s.endIndex, s[next].isLetter {
+                    word.append(s[next])
+                    next = s.index(after: next)
+                }
+                index = s.index(before: next)
+                guard let value = Double(number) else { return nil }
+                switch word.first {
+                case "h": total += value * 3600; lastUnit = "h"
+                case "m": total += value * 60; lastUnit = "m"
+                case "s": total += value; lastUnit = "s"
+                default: return nil
+                }
+                number = ""
+            } else if c != " " {
+                return nil
+            }
+            index = s.index(after: index)
+        }
+        if !number.isEmpty {
+            guard let value = Double(number) else { return nil }
+            total += lastUnit == "h" ? value * 60 : value
+        }
+        return total > 0 ? total : nil
     }
 
     static let defaultPresets: [TimerPreset] = [

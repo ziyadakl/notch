@@ -140,10 +140,17 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
     @Published var notchSize: CGSize = getClosedNotchSize()
     @Published var closedNotchSize: CGSize = getClosedNotchSize()
     
+    // CLI-BUILD: isolated deinit needs Swift 6.2; fall back on older toolchains.
+    #if compiler(>=6.2)
     @MainActor
     deinit {
         destroy()
     }
+    #else
+    deinit {
+        MainActor.assumeIsolated { destroy() }
+    }
+    #endif
 
     func destroy() {
         onViewTeardown?()
@@ -294,6 +301,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
             Defaults.publisher(.enableLyrics, options: []).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.showCalendar, options: []).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.showStandardMediaControls, options: []).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableMusic, options: []).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.autoHideInactiveNotchMediaPlayer, options: []).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.showMirror, options: []).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.lyricsPanelWidth, options: []).map { _ in () }.eraseToAnyPublisher(),

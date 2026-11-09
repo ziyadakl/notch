@@ -352,6 +352,10 @@ class CalendarManager: ObservableObject {
                 try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
                 if Task.isCancelled { break }
                 guard self.hasCalendarAccess else { continue }
+                // Only the lock screen weather widget reads these events; skip the EventKit
+                // fetch while it (or its calendar line) is off. Re-checked every tick, so
+                // switching it on resumes refreshing without a restart.
+                guard Defaults[.enableLockScreenWeatherWidget], Defaults[.lockScreenShowCalendarEvent] else { continue }
                 await self.updateLockScreenEvents(force: false)
             }
         }

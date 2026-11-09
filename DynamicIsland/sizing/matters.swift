@@ -43,7 +43,8 @@ enum SideLyricsLayout {
 }
 
 func sideLyricsRequiredNotchWidth() -> CGFloat {
-    guard Defaults[.enableLyrics],
+    guard Defaults[.enableMusic],
+          Defaults[.enableLyrics],
           !Defaults[.showCalendar],
           !Defaults[.enableMinimalisticUI],
           Defaults[.showStandardMediaControls],
@@ -102,7 +103,7 @@ func enabledStandardTabCount() -> Int {
     var count = 0
 
     // Home tab
-    if Defaults[.showStandardMediaControls] || Defaults[.showCalendar] || Defaults[.showMirror] {
+    if (Defaults[.enableMusic] && Defaults[.showStandardMediaControls]) || Defaults[.showCalendar] || Defaults[.showMirror] {
         count += 1
     }
 
@@ -270,6 +271,7 @@ func inlineLyricsAdjustedNotchSize(
     // notch grew for a line nobody could see whenever the player was switched
     // off, or hidden by auto-hide with nothing playing.
     guard isHomeTabActive,
+          Defaults[.enableMusic],
           !Defaults[.enableMinimalisticUI],
           Defaults[.enableLyrics],
           Defaults[.showCalendar],
@@ -412,7 +414,7 @@ func getClosedNotchSize(screen: String? = nil) -> CGSize {
         if let topLeftNotchpadding: CGFloat = screen.auxiliaryTopLeftArea?.width,
            let topRightNotchpadding: CGFloat = screen.auxiliaryTopRightArea?.width
         {
-            notchWidth = screen.frame.width - topLeftNotchpadding - topRightNotchpadding + 4
+            notchWidth = screen.frame.width - topLeftNotchpadding - topRightNotchpadding
             
             if Defaults[.customizePhysicalNotchWidth] {
                 notchWidth = Defaults[.closedNotchWidth]

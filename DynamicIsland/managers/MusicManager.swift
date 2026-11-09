@@ -728,8 +728,9 @@ class MusicManager: ObservableObject {
         // Listen for changes to the default controller preference
         NotificationCenter.default.publisher(for: Notification.Name.mediaControllerChanged)
             .sink { [weak self] _ in
-                self?.isPearDesktopAutoSwitched = false
-                self?.setActiveControllerBasedOnPreference()
+                guard let self, self.isMusicRunning else { return }
+                self.isPearDesktopAutoSwitched = false
+                self.setActiveControllerBasedOnPreference()
             }
             .store(in: &cancellables)
 
@@ -740,11 +741,35 @@ class MusicManager: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // The Music switch decides whether any controller (and its helper
+        // process) exists at all. Fires once with the current value.
+        Defaults.publisher(.enableMusic)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] change in
+                if change.newValue {
+                    self?.startMusic()
+                } else {
+                    self?.stopMusic()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Music on/off
+    private var isMusicRunning = false
+    private var musicCancellables = Set<AnyCancellable>()
+    private var musicStartTask: Task<Void, Never>?
+
+    private func startMusic() {
+        guard !isMusicRunning else { return }
+        isMusicRunning = true
+
         // Observe Pear Desktop launch/terminate for auto-detection
         setupPearDesktopAutoDetection()
 
         // Initialize deprecation check asynchronously
-        Task { @MainActor in
+        musicStartTask = Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
                 self.isNowPlayingDeprecated = try await self.mediaChecker.checkDeprecationStatus()
                 print("Deprecation check completed: \(self.isNowPlayingDeprecated)")
@@ -752,12 +777,13 @@ class MusicManager: ObservableObject {
                 print("Failed to check deprecation status: \(error). Defaulting to false.")
                 self.isNowPlayingDeprecated = false
             }
-            
+            guard self.isMusicRunning, !Task.isCancelled else { return }
+
             // Check if Pear Desktop is already running at startup
             let pearDesktopRunning = NSWorkspace.shared.runningApplications.contains {
                 $0.bundleIdentifier == Self.pearDesktopBundleID
             }
-            
+
             if pearDesktopRunning {
                 print("[MusicManager] Pear Desktop detected at startup, auto-switching to YouTubeMusicController")
                 self.isPearDesktopAutoSwitched = true
@@ -769,6 +795,31 @@ class MusicManager: ObservableObject {
                 self.setActiveControllerBasedOnPreference()
             }
         }
+    }
+
+    private func stopMusic() {
+        let wasRunning = isMusicRunning
+        isMusicRunning = false
+        musicStartTask?.cancel()
+        musicStartTask = nil
+        musicCancellables.removeAll()
+        guard wasRunning else { return }
+
+        debounceIdleTask?.cancel()
+        optimisticPlayStateTimeoutTask?.cancel()
+        lyricsFetchTask?.cancel()
+        lyricSyncTask?.cancel()
+        explicitLookupTask?.cancel()
+        controllerCancellables.removeAll()
+        // Kill the perl helper explicitly; deallocation alone did not end it.
+        activeController?.shutdown()
+        activeController = nil
+
+        isPlaying = false
+        isPlayerIdle = true
+        songTitle = "I'm Handsome"
+        artistName = "Me"
+        album = "Self Love"
     }
 
     // MARK: - Pear Desktop Auto-Detection
@@ -785,7 +836,7 @@ class MusicManager: ObservableObject {
                     self.setActiveController(controller)
                 }
             }
-            .store(in: &cancellables)
+            .store(in: &musicCancellables)
 
         NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)
             .sink { [weak self] notification in
@@ -799,7 +850,7 @@ class MusicManager: ObservableObject {
                     self.setActiveControllerBasedOnPreference()
                 }
             }
-            .store(in: &cancellables)
+            .store(in: &musicCancellables)
     }
 
     deinit {
@@ -813,12 +864,14 @@ class MusicManager: ObservableObject {
         lyricSyncTask?.cancel()
         explicitLookupTask?.cancel()
         cancellables.removeAll()
+        musicCancellables.removeAll()
         controllerCancellables.removeAll()
         transitionWorkItem?.cancel()
         artworkHandoffTask?.cancel()
         pendingHandoffArtwork = nil
 
         // Release active controller
+        activeController?.shutdown()
         activeController = nil
     }
 
@@ -827,6 +880,7 @@ class MusicManager: ObservableObject {
         // Cleanup previous controller
         if activeController != nil {
             controllerCancellables.removeAll()
+            activeController?.shutdown()
             activeController = nil
         }
 

@@ -279,6 +279,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Stop the perl now-playing helper so it does not outlive the app.
+        MusicManager.shared.destroy()
         let userInfo: [String: Any] = [
             AtollDistributedNotifications.UserInfoKey.sourcePID: NSNumber(value: ProcessInfo.processInfo.processIdentifier)
         ]
@@ -565,9 +567,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var baseSize = Defaults[.enableMinimalisticUI] ? minimalisticOpenNotchSize(isDynamicIslandMode: shouldUseDynamicIslandMode(for: vm.screen)) : openNotchSize
         
         // Use a consistent height for different view types
-        if coordinator.currentView == .timer {
-            baseSize.height = 250 // Extra space for timer presets
-        } else if coordinator.currentView == .notes {
+        if coordinator.currentView == .notes {
             let preferredHeight = coordinator.notesLayoutState.preferredHeight
             baseSize.height = max(baseSize.height, preferredHeight)
         } else if coordinator.currentView == .clipboard {
@@ -624,7 +624,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             notchState: vm.notchState,
             hasActiveMusicSnapshot: hasActiveMusicSnapshot,
             musicLiveActivityEnabled: coordinator.musicLiveActivityEnabled,
-            closedMusicContentEnabled: Defaults[.enableMinimalisticUI] || Defaults[.showStandardMediaControls],
+            closedMusicContentEnabled: Defaults[.enableMusic] && (Defaults[.enableMinimalisticUI] || Defaults[.showStandardMediaControls]),
             hideOnClosed: vm.hideOnClosed,
             isLocked: LockScreenManager.shared.isLocked,
             isDeferredAfterUnlock: LockScreenManager.shared.shouldDelayPostUnlockMusicHUD

@@ -47,6 +47,8 @@ class FilteredNowPlayingController: ObservableObject, MediaControllerProtocol {
     private let MRMediaRemoteSetRepeatModeFunction: @convention(c) (Int) -> Void
 
     private var process: Process?
+    // Set by shutdown(); stops a helper launch that was still pending from starting afterwards.
+    private var isShutDown = false
     private var pipeHandler: JSONLinesPipeHandler?
     private var streamTask: Task<Void, Never>?
     private let targetBundleIdentifier: String
@@ -89,6 +91,16 @@ class FilteredNowPlayingController: ObservableObject, MediaControllerProtocol {
             MRMediaRemoteSetRepeatModePointer, to: (@convention(c) (Int) -> Void).self)
 
         Task { await setupNowPlayingObserver() }
+    }
+
+    /// Stops the perl helper right away instead of waiting for deallocation.
+    func shutdown() {
+        isShutDown = true
+        streamTask?.cancel()
+        streamTask = nil
+        if let process, process.isRunning {
+            process.terminate()
+        }
     }
 
     deinit {
@@ -216,6 +228,7 @@ class FilteredNowPlayingController: ObservableObject, MediaControllerProtocol {
             print("\(logName) [stderr]: \(message)")
         }
 
+        guard !isShutDown else { return }
         self.process = process
         self.pipeHandler = pipeHandler
 

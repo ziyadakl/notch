@@ -895,6 +895,7 @@ struct NotchHomeView: View {
     @ObservedObject private var extensionNotchExperienceManager = ExtensionNotchExperienceManager.shared
     @ObservedObject private var musicManager = MusicManager.shared
     @Default(.showStandardMediaControls) private var showStandardMediaControls
+    @Default(.enableMusic) private var enableMusic
     @Default(.autoHideInactiveNotchMediaPlayer) private var autoHideInactiveNotchMediaPlayer
     @Default(.showCalendar) private var showCalendar
     @Default(.enableLyrics) private var enableLyrics
@@ -906,7 +907,7 @@ struct NotchHomeView: View {
 
     /// Whether the music player should actively display (enabled AND has real content).
     private var shouldShowMusicPlayer: Bool {
-        showStandardMediaControls && (!autoHideInactiveNotchMediaPlayer || musicManager.hasActiveSession)
+        enableMusic && showStandardMediaControls && (!autoHideInactiveNotchMediaPlayer || musicManager.hasActiveSession)
     }
 
     private var shouldShowSideLyrics: Bool {
